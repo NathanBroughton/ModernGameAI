@@ -131,7 +131,7 @@ class MCTSBot(botbowl.Agent):
         if self.setup_actions:
             action = self.setup_actions.pop(0)
 
-        # If no formation was set, create the actions now and return the first
+        # If no formation was set, create the actions now and return the first action
         elif not self.setup_actions and self.formation == False:
             if game.get_receiving_team() == self.my_team:
                 self.setup_actions = self.off_formation.actions(game, self.my_team)
