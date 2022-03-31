@@ -13,7 +13,6 @@ from botbowl.web import server
 
 
 class MyRandomBot(botbowl.Agent):
-
     def __init__(self, name, seed=None):
         super().__init__(name)
         self.my_team = None
@@ -25,9 +24,7 @@ class MyRandomBot(botbowl.Agent):
     def act(self, game):
         # Select a random action type
         while True:
-            #print(game.state)
             action_choice = self.rnd.choice(game.state.available_actions)
-            #print(action_choice)
             # Ignore PLACE_PLAYER actions
             if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
                 break
@@ -37,9 +34,8 @@ class MyRandomBot(botbowl.Agent):
         player = self.rnd.choice(action_choice.players) if len(action_choice.players) > 0 else None
 
         # Make action object
-        #print(action_choice.action_type)
         action = botbowl.Action(action_choice.action_type, position=position, player=player)
-        #print(action)
+
         # Return action to the framework
         return action
 
@@ -57,8 +53,8 @@ class MCTSBot(botbowl.Agent):
         self.coin = "heads"
         self.KR = "kick"
         self.rnd = np.random.RandomState(seed)
-        self.formation = False
         self.m = 1
+        self.formation = False
         self.off_formation = [
             ["-", "-", "-", "-", "-", "-", "-", "-"],
             ["-", "x", "-", "-", "-", "-", "-", "-"],
@@ -83,93 +79,73 @@ class MCTSBot(botbowl.Agent):
         ]
         self.off_formation = botbowl.Formation("Wedge offense", self.off_formation)
         self.def_formation = botbowl.Formation("Zone defense", self.def_formation)
-        #self.setup_actions = []        
+        self.setup_actions = []
         
     def new_game(self,game,team):
         self.my_team = team
         
     def act(self,game):
-        #while True:
-        #    action_choice = self.rnd.choice(game.state.available_actions)
-            
-            #print(action_choice.action_type)
-            #if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
-            #    break
-        #print(game.state.available_actions[0])  
         print(game.state.available_actions)
-        
+
         ##Scripted coin flip
+        # Why is this needed? can't you just set which team starts. Haven't seen actiontype.Heads coming up
         if(game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
             if(self.coin == "heads"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
             else:
                 action = botbowl.Action(game.state.available_actions[1].action_type)
-        ##Scripted kick/recieve
+
+        ##Scripted kick/receive
+        # Kick can now be selected before a team is formed
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.KICK):
             if(self.KR == "kick"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
             else:
                 action = botbowl.Action(game.state.available_actions[1].action_type)
+
         ##Scripted Formation, does not work yet!!!!
-        #print(self.formation)
-        #if(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER and self.formation == False):
-        #    action = botbowl.Action(game.state.available_actions[0].action_type)
-        elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
-            while True:
-                #print(game.state)
-                action_choice = self.rnd.choice(game.state.available_actions)
-                #print(action_choice)
-                # Ignore PLACE_PLAYER actions
-                if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
-                    break
+        # Place a player according to the formation when your team does't have 5 players in a position
+        if(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
+            # if [player.position != None for player in self.my_team.players].count(True) != 5:
+            if (self.formation == False) or (self.formation == True and len(self.setup_actions != 0)):
+                action = self.setup(game)
+            else:
+                action = botbowl.Action(game.state.available_actions[1].action_type)
 
-            # Select a random position and/or player
-            position = self.rnd.choice(action_choice.positions) if len(action_choice.positions) > 0 else None
-            player = self.rnd.choice(action_choice.players) if len(action_choice.players) > 0 else None
-
-            # Make action object
-            #print(action_choice.action_type)
-            action = botbowl.Action(action_choice.action_type, position=position, player=player)
-            #print(action)
-            #print(game.state.available_actions[0].positions)
-            #action = setup_action.pop(0)
-            #action = self.setup(game)
-            #print(action)
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_BALL):
             position = self.rnd.choice(game.state.available_actions[0].positions)
             action = botbowl.Action(game.state.available_actions[0].action_type, position=position)
-        #print("im here")
+
         ##Stuur deepcopy naar MCTS class om beste actie te kiezen
         else:
             MCTS_game = copy.deepcopy(game)
-            root = MCTS(MCTS_game,self.my_team)
-            action = root.BestAction()       
-            
+            root = MCTS(MCTS_game, self.my_team)
+            action = root.BestAction()
         return action
     
     def setup(self, game):
         self.my_team = game.get_team_by_id(self.my_team.team_id)
         self.opp_team = game.get_opp_team(self.my_team)
+
+        # Get the first action if a formation and their actions have been set
         if self.setup_actions:
             action = self.setup_actions.pop(0)
-            #print(action)
-            return action
-        else:
+
+        # If no formation was set, create the actions now and return the first
+        elif not self.setup_actions and self.formation == False:
             if game.get_receiving_team() == self.my_team:
-                self.setup_actions = self.off_formation.actions(game,self.my_team)
+                self.setup_actions = self.off_formation.actions(game, self.my_team)
                 self.setup_actions.append(botbowl.Action(botbowl.ActionType.END_SETUP))
+                self.formation = True
                 action = self.setup_actions.pop(0)
-                return action
-                
+
             else:
-                #print(self.def_formation.actions(game,self.my_team))
-                self.setup_actions = self.def_formation.actions(game,self.my_team)
+                self.setup_actions = self.def_formation.actions(game, self.my_team)
                 self.setup_actions.append(botbowl.Action(botbowl.ActionType.END_SETUP))
+                self.formation = True
                 action = self.setup_actions.pop(0)
-                return action
-        
-        
-            
+        return(action)
+
     def end_game(self,game):
         pass
     
@@ -193,18 +169,18 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         self.actions = game_copy.getActions()
         return self.actions"""
     
-    def Rewards(self): #Som rewards
-        reward =self.results
+    def Rewards(self): #Som rewards - Waarom is dit een functie? Roep gewoon self.results aan als je de rewards wilt
+        reward = self.results
         return reward
     
     def N(self):
-        return self.n_visited_nodes
+        return self.n_visited_nodes # Waarom is dit een functie? Roep gewoon self.n_visited_nodess aan
     
     def Expand(self):
         action = self.getActions().pop()
         self.move(action)
         next_state = copy.deepcopy(self.game_copy)
-        child_node = MCTS(next_state,self.my_team, parent=self, parent_action=action)
+        child_node = MCTS(next_state, self.my_team, parent=self, parent_action=action)
         self.children.append(child_node)
         return child_node
     
@@ -215,7 +191,6 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         current_rollout_state = self.game_copy
         #print(current_rollout_state.state.game_over)
         while(self.depth != 0 or current_rollout_state.state.game_over):
-            
             moves = current_rollout_state.state.available_actions
             
             action = self.rollout_policy(moves)
@@ -235,7 +210,7 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
     def FullExpansion(self):
         return len(self.actions) == 0
     
-    def BestChild(self, c_param=0.1): #Verander q naar rewards
+    def BestChild(self, c_param=0.1):
         choices = [(c.Rewards()/c.N())+c_param * np.sqrt((2*np.log(self.N())/c.N())) for c in self.children]
         return self.children[np.argmax(choices)]
     
@@ -278,15 +253,28 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         #print(self.state)
         GO = self.game_copy.state.game_over
         return GO
-    
-    def game_result(self): ##Hoe gaan we score implementeren
-        score = (self.game_copy.state.home_team.state.score - self.game_copy.state.away_team.state.score)*20 #Assume MCTS bot is home team.
-        """for player in self.game_copy.state.my_team.players:
-            if(self.game_copy.state.has_ball(player) == True):
-                score += 15
-            if(player.game_copy.state.dead == True):
-                score -= 10"""
-        print("Score is:",score)
+
+    def game_result(self):
+        ball_carrier = self.game_copy.get_ball_carrier()
+        target_x = self.game_copy.get_opp_endzone_x(self.my_team)
+
+        # Base score of 100 points per difference in goals
+        score = (self.game_copy.state.home_team.state.score - self.game_copy.state.away_team.state.score) * 100  # Assume MCTS bot is home team.
+        for player in self.my_team.players:
+            if player.state.up and not player.state.stunned:
+                # 1 point for each player alive and usable
+                score += 1
+
+            if player == ball_carrier or self.game_copy.has_ball(player):
+                # 5 points if our team has the ball with a bonus for high movement
+                score += 5 + player.get_ma()
+
+        # Calculate ball distance from endzone and apply penalty for large distances
+        x_ball = self.game_copy.get_ball_position().x
+        distance2endzone = abs(target_x - x_ball)
+        score -= distance2endzone
+
+        print("Score is:", score)
         return score
     
     def move(self,action): ##Hoe gaan we position and player kiezen 
@@ -322,9 +310,6 @@ if __name__ == "__main__":
 
         game = botbowl.Game(i, home, away, home_agent, away_agent, config, arena=arena, ruleset=ruleset)
         game.config.fast_mode = True
-        
-            
-        
 
         print("Starting game", (i+1))
         game.init()
