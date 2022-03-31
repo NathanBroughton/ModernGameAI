@@ -121,6 +121,9 @@ class MCTSBot(botbowl.Agent):
             MCTS_game = copy.deepcopy(game)
             root = MCTS(MCTS_game, self.my_team)
             action = root.BestAction()
+            position = self.rnd.choice(action.positions) if len(action.positions) > 0 else None #Aanpassen dit moet niet random
+            player = self.rnd.choice(action.players) if len(action.players) > 0 else None
+            action = botbowl.Action(action.action_type, position=position, player=player)
         return action
     
     def setup(self, game):
@@ -157,6 +160,7 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         self.parent = parent
         self.parent_action = parent_action
         self.children = []
+        self.childaction = []
         self.n_visited_nodes = 0
         self.results = 0
         self.rnd = np.random.RandomState(seed)
@@ -169,19 +173,24 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         self.actions = game_copy.getActions()
         return self.actions"""
     
-    def Rewards(self): #Som rewards - Waarom is dit een functie? Roep gewoon self.results aan als je de rewards wilt
-        reward = self.results
+    def Rewards(self): #Som rewards
+        reward =self.results
         return reward
     
     def N(self):
-        return self.n_visited_nodes # Waarom is dit een functie? Roep gewoon self.n_visited_nodess aan
+        return self.n_visited_nodes
     
     def Expand(self):
-        action = self.getActions().pop()
+        #game_copy2 = copy.deepcopy(self.game_copy)
+        print("My possible actions are:", self.getActions())
+        action = self.rollout_policy(self.getActions())
+        print("Picking action:",action)
         self.move(action)
         next_state = copy.deepcopy(self.game_copy)
-        child_node = MCTS(next_state, self.my_team, parent=self, parent_action=action)
+        child_node = MCTS(next_state,self.my_team, parent=self, parent_action=action)
         self.children.append(child_node)
+        self.childaction.append(action)
+        #self.game_copy = game_copy2
         return child_node
     
     def TerminalNode(self):
@@ -191,8 +200,11 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         current_rollout_state = self.game_copy
         #print(current_rollout_state.state.game_over)
         while(self.depth != 0 or current_rollout_state.state.game_over):
-            moves = current_rollout_state.state.available_actions
             
+            moves = current_rollout_state.state.available_actions
+            print("my moves are:", moves, self.depth)
+            if(len(moves) == 0):
+                break
             action = self.rollout_policy(moves)
             #print(action)
             self.move(action)
@@ -208,14 +220,16 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
             self.parent.Backpropagate(result)
             
     def FullExpansion(self):
+        #print("these are my actions:", len(self.actions))
         return len(self.actions) == 0
     
-    def BestChild(self, c_param=0.1):
+    def BestChild(self, c_param=0.1): #Verander q naar rewards
         choices = [(c.Rewards()/c.N())+c_param * np.sqrt((2*np.log(self.N())/c.N())) for c in self.children]
+        print("My choice are", choices)
         return self.children[np.argmax(choices)]
     
     def rollout_policy(self,moves):
-        print(moves)
+        #print(moves)
         return moves[np.random.randint(len(moves))] #Checken of dit klopt
     
     def Tree_Policy(self,d):
@@ -240,8 +254,12 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
             print(v)
             reward = v.Rollout()
             v.Backpropagate(reward)
-        print(self.BestChild(c_param=0.))
-        return self.BestChild(c_param=0.)
+        print("SUCCES")
+        #print(np.argmax(self.BestChild(c_param=0.)))
+        print(self.childaction)
+        print(self.childaction[np.argmax(self.BestChild(c_param=0.))])
+        return self.childaction[np.argmax(self.BestChild(c_param=0.))]
+        #return self.BestChild(c_param=0.)
     
     def getActions(self): #Aanpassen voor position and player
         #print(self.game_copy)
@@ -254,27 +272,28 @@ class MCTS(botbowl.Agent): ##Neemt nu een deepcopy als input. Nog geen deepcopy 
         GO = self.game_copy.state.game_over
         return GO
 
-    def game_result(self):
+    def game_result(self): ##Hoe gaan we score implementeren
         ball_carrier = self.game_copy.get_ball_carrier()
         target_x = self.game_copy.get_opp_endzone_x(self.my_team)
 
         # Base score of 100 points per difference in goals
-        score = (self.game_copy.state.home_team.state.score - self.game_copy.state.away_team.state.score) * 100  # Assume MCTS bot is home team.
+        score = (self.game_copy.state.home_team.state.score - self.game_copy.state.away_team.state.score) * 100 #Assume MCTS bot is home team.
         for player in self.my_team.players:
             if player.state.up and not player.state.stunned:
                 # 1 point for each player alive and usable
                 score += 1
+                
 
             if player == ball_carrier or self.game_copy.has_ball(player):
                 # 5 points if our team has the ball with a bonus for high movement
                 score += 5 + player.get_ma()
-
+        
         # Calculate ball distance from endzone and apply penalty for large distances
         x_ball = self.game_copy.get_ball_position().x
         distance2endzone = abs(target_x - x_ball)
         score -= distance2endzone
 
-        print("Score is:", score)
+        print("Score is:",score)
         return score
     
     def move(self,action): ##Hoe gaan we position and player kiezen 
