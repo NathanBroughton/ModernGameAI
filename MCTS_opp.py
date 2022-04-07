@@ -13,8 +13,8 @@ import time
 from botbowl.web import server
 
 
-rollout_depth = 15
-tree_depth = 5
+rollout_depth = 10
+tree_depth = 50
 n_simulations = 100
 
 if rollout_depth == None:
@@ -75,7 +75,6 @@ class MCTSNode_opp:
     def best_action(self, c_val=0.1):
         child = self.best_child(c_val)
         return child.action
-
 
 class MCTSbot_opp(botbowl.Agent):
     def __init__(self, name, seed=None):
