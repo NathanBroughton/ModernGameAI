@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Apr  4 19:14:58 2022
+Created on Thu Apr  7 11:46:55 2022
 
 @author: NatBr
 """
@@ -11,9 +11,9 @@ import numpy as np
 import copy
 import time
 from botbowl.web import server
-import MCTS_opp as opp
 
-rollout_depth = 10
+
+rollout_depth = 15
 tree_depth = 5
 n_simulations = 100
 
@@ -27,42 +27,7 @@ if tree_depth == None:
 else:
     tree2terminal = False
 
-
-class MyRandomBot(botbowl.Agent):
-    def __init__(self, name, seed=None):
-        super().__init__(name)
-        self.my_team = None
-        self.rnd = np.random.RandomState(seed)
-
-    def new_game(self, game, team):
-        self.my_team = team
-
-    def act(self, game):
-        # Select a random action type
-        while True:
-            action_choice = self.rnd.choice(game.state.available_actions)
-            # Ignore PLACE_PLAYER actions
-            if action_choice.action_type != botbowl.ActionType.PLACE_PLAYER:
-                break
-
-        # Select a random position and/or player
-        position = self.rnd.choice(action_choice.positions) if len(
-            action_choice.positions) > 0 else None
-        player = self.rnd.choice(action_choice.players) if len(
-            action_choice.players) > 0 else None
-
-        # Make action object
-        action = botbowl.Action(action_choice.action_type,
-                                position=position, player=player)
-
-        # Return action to the framework
-        return action
-
-    def end_game(self, game):
-        pass
-
-
-class MCTSNode:
+class MCTSNode_opp:
     # This node is used for the recursive tree search
     def __init__(self, action=None, parent=None):
         self.parent = parent
@@ -88,7 +53,7 @@ class MCTSNode:
             self.parent.backpropagate(score)
 
     def expand(self, action):
-        child = MCTSNode(action=action, parent=self)
+        child = MCTSNode_opp(action=action, parent=self)
         self.children.append(child)
         self.child_actions.append(action)
         return child
@@ -112,7 +77,7 @@ class MCTSNode:
         return child.action
 
 
-class MCTSbot(botbowl.Agent):
+class MCTSbot_opp(botbowl.Agent):
     def __init__(self, name, seed=None):
         super().__init__(name)
         self.my_team = None
@@ -154,7 +119,10 @@ class MCTSbot(botbowl.Agent):
         self.my_team = team
 
     def act(self, game):
+        # print("Time to take an action")
+        #print(game.state.available_actions)
         ##Scripted coin flip
+        # Why is this needed? can't you just set which team starts. Haven't seen actiontype.Heads coming up
         if (game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
             if(self.coin == "heads"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
@@ -162,22 +130,32 @@ class MCTSbot(botbowl.Agent):
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
         ##Scripted kick/receive
+        # Kick can now be selected before a team is formed
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.KICK):
             if(self.KR == "kick"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
             else:
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
-        ##Scripted Formation
+        ##Scripted Formation, does not work yet!!!!
         # Place a player according to the formation when your team does't have 5 players in a position
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
+            # if [player.position != None for player in self.my_team.players].count(True) != 5:
+            #print(self.formation)
+            #print("1:!!!!!!")
             if (self.formation == False) or (self.formation == True and len(self.setup_actions) != 0):
+                #print("2:!!!!!!")
                 action = self.setup(game)
             elif [player.position != None for player in self.my_team.players].count(True) == 5:
-                action = botbowl.Action(game.state.available_actions[1].action_type)
 
+            # else:
+                #print("3:!!!!!!")
+                action = botbowl.Action(game.state.available_actions[1].action_type)
             if(action.action_type == botbowl.ActionType.END_SETUP):
                 self.formation = False
+                #print("4:!!!!!!")
+            #print(botbowl.ActionType.END_SETUP)
+            #print(action)
 
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_BALL):
             position = self.rnd.choice(game.state.available_actions[0].positions)
@@ -193,7 +171,7 @@ class MCTSbot(botbowl.Agent):
             game_copy.away_agent.human = True
 
             # Create root node
-            root_node = MCTSNode()
+            root_node = MCTSNode_opp()
             root_step = game_copy.get_step()
 
             # print("Simulating {0} games".format(n_simulations))
@@ -366,46 +344,3 @@ class MCTSbot(botbowl.Agent):
     def end_game(self, game):
         print("The average time per action taken is", self.avg_time/self.no_actions_taken, "seconds")
         pass
-
-
-# Register the bot to the framework
-botbowl.register_bot('my-random-bot', MyRandomBot)
-botbowl.register_bot('MCTS-bot', MCTSbot)
-botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
-#server.start_server(debug=True, use_reloader=False)
-
-if __name__ == "__main__":
-    # test = MCTS(5) #We sturen game.state in MCTS niet 5
-    # Load configurations, rules, arena and teams
-    config = botbowl.load_config("web")
-    ruleset = botbowl.load_rule_set(config.ruleset)
-    arena = botbowl.load_arena(config.arena)
-    home = botbowl.load_team_by_filename("human", ruleset)
-    away = botbowl.load_team_by_filename("human", ruleset)
-    config.competition_mode = False
-    config.debug_mode = False
-
-    # Play 5 games
-    game_times = []
-    MCTS_wins = 0
-    for i in range(5):
-        time_startGame = time.time()
-        away_agent = botbowl.make_bot("MCTS-bot_opp")
-        home_agent = botbowl.make_bot("MCTS-bot")
-
-        game = botbowl.Game(i, home, away, home_agent,
-                            away_agent, config, arena=arena, ruleset=ruleset)
-        game.config.fast_mode = True
-
-        print("Starting game", (i+1))
-        game.init()
-        if(game.get_winner() == home_agent):
-            print("Home team wins!!")
-            MCTS_wins += 1
-        if(game.get_winner() == away_agent):
-            print("Away teams wins!!")
-        print(game.get_winner())
-        time_endGame = time.time()
-        print("Total time of game was: {0} seconds".format(time_endGame - time_startGame))
-        print("Game is over")
-    print("MCTS agent won a total of", MCTS_wins, "games")
