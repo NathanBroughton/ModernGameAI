@@ -34,7 +34,7 @@ class MyRandomBot(botbowl.Agent):
         self.my_team = None
         self.rnd = np.random.RandomState(seed)
 
-    def new_game(self, game, team):
+    def new_game(self, team):
         self.my_team = team
 
     def act(self, game):
@@ -104,7 +104,6 @@ class MCTSNode:
         for child in self.children:
             ucb_values.append(child.q() / child.n() + c_val *
                               np.sqrt((2 * np.log(self.n()) / child.n())))
-        #print("My children", self.child_actions, "with values:", ucb_values, "with lengths:", len(self.child_actions), "and", len(ucb_values))
         return self.children[np.argmax(ucb_values)]
 
     def best_action(self, c_val=0.1):
@@ -221,7 +220,6 @@ class MCTSbot(botbowl.Agent):
         return action
 
     def traverse(self, root_node, game_copy):
-        # This is spaghetti, but I tried to document it as well as possible
         # The goal of this function is to find a leaf node (either terminal, unexplored or at max depth)
         current_node = root_node
         if not tree2terminal:
@@ -328,6 +326,7 @@ class MCTSbot(botbowl.Agent):
         score = (game_copy.state.home_team.state.score -
                  game_copy.state.away_team.state.score) * 100
 
+        # Score reduction when the ball is far away from the end zone
         if game_copy.get_ball_position() != None:
             x_ball = game_copy.get_ball_position().x
             y_ball = game_copy.get_ball_position().y
@@ -336,30 +335,27 @@ class MCTSbot(botbowl.Agent):
         else:
             x_ball, y_ball = None, None
 
+        # Increase score if your team is standing and has the ball
         for player in self.my_team.players:
             if player.state.up and not player.state.stunned:
                 score += 1
             if player == ball_carrier or game_copy.has_ball(player):
-                # Not sure which conditional to use, so why not use both
                 score += 5 + player.get_ma()
             if x_ball != None and player.position != None:
                 player_x = player.position.x
                 player_y = player.position.y
                 dist = np.linalg.norm(np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
                 score -= (dist / player.get_ma())
-        
+
         enemy_players = game_copy.get_opp_team(self.my_team)
         for player in enemy_players:
+            # Increase score when the other team has downed players
             if not player.state.up or player.state.stunned:
                 score += 10
+            # Reduce score when the opponent has the ball
             if player == ball_carrier or game_copy.has_ball(player):
                 score -= 5
 
-        if game_copy.get_ball_position() != None:
-            x_ball = game_copy.get_ball_position().x
-            distance2endzone = abs(target_x - x_ball)
-            score -= distance2endzone
-            
         return score
 
     def setup(self, game):
@@ -397,7 +393,6 @@ botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
 #server.start_server(debug=True, use_reloader=False)
 
 if __name__ == "__main__":
-    # test = MCTS(5) #We sturen game.state in MCTS niet 5
     # Load configurations, rules, arena and teams
     config = botbowl.load_config("web")
     ruleset = botbowl.load_rule_set(config.ruleset)
@@ -407,13 +402,13 @@ if __name__ == "__main__":
     config.competition_mode = False
     config.debug_mode = False
 
-    # Play 5 games
+    # Play 3 games
     game_times = []
     MCTS_wins = 0
     for i in range(3):
         time_startGame = time.time()
         away_agent = botbowl.make_bot("my-random-bot")
-        home_agent = botbowl.make_bot("my-random-bot")
+        home_agent = botbowl.make_bot('MCTS-bot_opp')
 
         game = botbowl.Game(i, home, away, home_agent,
                             away_agent, config, arena=arena, ruleset=ruleset)

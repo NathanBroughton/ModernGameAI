@@ -13,9 +13,9 @@ import time
 from botbowl.web import server
 
 
-rollout_depth = 10
-tree_depth = 50
-n_simulations = 100
+rollout_depth = 5
+tree_depth = 5
+n_simulations = 200
 
 if rollout_depth == None:
     rollout2terminal = True
