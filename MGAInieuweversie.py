@@ -34,7 +34,7 @@ class MyRandomBot(botbowl.Agent):
         self.my_team = None
         self.rnd = np.random.RandomState(seed)
 
-    def new_game(self, team):
+    def new_game(self, game, team):
         self.my_team = team
 
     def act(self, game):
@@ -348,7 +348,7 @@ class MCTSbot(botbowl.Agent):
                 score -= (dist / player.get_ma())
 
         enemy_players = game_copy.get_opp_team(self.my_team)
-        for player in enemy_players:
+        for player in enemy_players.players:
             # Increase score when the other team has downed players
             if not player.state.up or player.state.stunned:
                 score += 10

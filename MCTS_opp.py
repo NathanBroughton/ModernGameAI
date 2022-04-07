@@ -327,7 +327,7 @@ class MCTSbot_opp(botbowl.Agent):
                 score -= (dist / player.get_ma())
         
         enemy_players = game_copy.get_opp_team(self.my_team)
-        for player in enemy_players:
+        for player in enemy_players.players:
             if not player.state.up or player.state.stunned:
                 score += 10
             if player == ball_carrier or game_copy.has_ball(player):
