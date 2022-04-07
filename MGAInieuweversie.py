@@ -11,7 +11,7 @@ import numpy as np
 import copy
 import time
 from botbowl.web import server
-
+import MCTS_opp as opp
 
 rollout_depth = 10
 tree_depth = 5
@@ -384,6 +384,7 @@ class MCTSbot(botbowl.Agent):
 # Register the bot to the framework
 botbowl.register_bot('my-random-bot', MyRandomBot)
 botbowl.register_bot('MCTS-bot', MCTSbot)
+botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
 #server.start_server(debug=True, use_reloader=False)
 
 if __name__ == "__main__":
@@ -392,8 +393,8 @@ if __name__ == "__main__":
     config = botbowl.load_config("web")
     ruleset = botbowl.load_rule_set(config.ruleset)
     arena = botbowl.load_arena(config.arena)
-    home = botbowl.load_team_by_filename("skaven", ruleset)
-    away = botbowl.load_team_by_filename("undead", ruleset)
+    home = botbowl.load_team_by_filename("human", ruleset)
+    away = botbowl.load_team_by_filename("human", ruleset)
     config.competition_mode = False
     config.debug_mode = False
 
@@ -402,7 +403,7 @@ if __name__ == "__main__":
     MCTS_wins = 0
     for i in range(5):
         time_startGame = time.time()
-        away_agent = botbowl.make_bot("my-random-bot")
+        away_agent = botbowl.make_bot("MCTS-bot_opp")
         home_agent = botbowl.make_bot("MCTS-bot")
 
         game = botbowl.Game(i, home, away, home_agent,
