@@ -341,16 +341,39 @@ class MCTSbot(botbowl.Agent):
         target_x = game_copy.get_opp_endzone_x(self.my_team)
         score = (game_copy.state.home_team.state.score -
                  game_copy.state.away_team.state.score) * 100
+
+        if game_copy.get_ball_position() != None:
+            x_ball = game_copy.get_ball_position().x
+            y_ball = game_copy.get_ball_position().y
+            distance2endzone = abs(target_x - x_ball)
+            score -= distance2endzone
+        else:
+            x_ball, y_ball = None, None
+
         for player in self.my_team.players:
             if player.state.up and not player.state.stunned:
                 score += 1
             if player == ball_carrier or game_copy.has_ball(player):
                 # Not sure which conditional to use, so why not use both
                 score += 5 + player.get_ma()
+            if x_ball != None and player.position != None:
+                player_x = player.position.x
+                player_y = player.position.y
+                dist = np.linalg.norm(np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
+                score -= (dist / player.get_ma())
+        
+        enemy_players = game_copy.get_opp_team(self.my_team)
+        for player in enemy_players:
+            if not player.state.up or player.state.stunned:
+                score += 10
+            if player == ball_carrier or game_copy.has_ball(player):
+                score -= 5
+
         if game_copy.get_ball_position() != None:
             x_ball = game_copy.get_ball_position().x
             distance2endzone = abs(target_x - x_ball)
             score -= distance2endzone
+            
         return score
 
     def setup(self, game):
@@ -401,10 +424,10 @@ if __name__ == "__main__":
     # Play 10 games
     game_times = []
     MCTS_wins = 0
-    for i in range(5):
+    for i in range(3):
         time_startGame = time.time()
-        away_agent = botbowl.make_bot("MCTS-bot_opp")
-        home_agent = botbowl.make_bot("MCTS-bot")
+        away_agent = botbowl.make_bot("my-random-bot")
+        home_agent = botbowl.make_bot("my-random-bot")
 
         game = botbowl.Game(i, home, away, home_agent,
                             away_agent, config, arena=arena, ruleset=ruleset)
@@ -421,5 +444,7 @@ if __name__ == "__main__":
         print(game.get_winner())
         time_endGame = time.time()
         print("Total time of game was: {0} seconds".format(time_endGame - time_startGame))
+        print(game.state.home_team.state.score, "-", game.state.away_team.state.score)
         print("Game is over")
+    
     print("Agent won a total of", MCTS_wins, "games")
