@@ -92,14 +92,14 @@ class MCTSNode:
     def is_fully_expanded(self):
         return self.fully_expanded
 
-    def best_child(self, c_val=0.1):
+    def best_child(self, c_val=np.sqrt(2)):
         ucb_values = []
         for child in self.children:
             ucb_values.append(child.q() / child.n() + c_val *
                               np.sqrt((2 * np.log(self.n()) / child.n())))
         return self.children[np.argmax(ucb_values)]
 
-    def best_action(self, c_val=0.1):
+    def best_action(self, c_val=np.sqrt(2)):
         child = self.best_child(c_val)
         return child.action
 
@@ -338,7 +338,7 @@ class MCTSbot(botbowl.Agent):
                 player_x = player.position.x
                 player_y = player.position.y
                 dist = np.linalg.norm(np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
-                score -= (dist * player.get_ma()) / 5
+                score -= (dist / player.get_ma())
 
         if game_copy.get_ball_position() != None:
             x_ball = game_copy.get_ball_position().x
