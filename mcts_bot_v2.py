@@ -313,7 +313,7 @@ class MCTSbot(botbowl.Agent):
                 game_over = True
         return game_copy
 
-    def evaluate(self, game_copy):
+        def evaluate(self, game_copy):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
@@ -354,6 +354,7 @@ class MCTSbot(botbowl.Agent):
 
         return score
 
+    
     def setup(self, game):
         self.my_team = game.get_team_by_id(self.my_team.team_id)
         self.opp_team = game.get_opp_team(self.my_team)
