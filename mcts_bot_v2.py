@@ -339,6 +339,13 @@ class MCTSbot(botbowl.Agent):
                 player_y = player.position.y
                 dist = np.linalg.norm(np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
                 score -= (dist / player.get_ma())
+        
+        enemy_players = game_copy.get_opp_team(self.my_team)
+        for player in enemy_players:
+            if not player.state.up or player.state.stunned:
+                score += 10
+            if player == ball_carrier or game_copy.has_ball(player):
+                score -= 5
 
         if game_copy.get_ball_position() != None:
             x_ball = game_copy.get_ball_position().x
