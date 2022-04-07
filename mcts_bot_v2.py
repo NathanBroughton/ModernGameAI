@@ -90,14 +90,14 @@ class MCTSNode:
     def is_fully_expanded(self):
         return self.fully_expanded
 
-    def best_child(self, c_val=0.1):
+    def best_child(self, c_val=np.sqrt(2)):
         ucb_values = []
         for child in self.children:
             ucb_values.append(child.q() / child.n() + c_val *
                               np.sqrt((2 * np.log(self.n()) / child.n())))
         return self.children[np.argmax(ucb_values)]
 
-    def best_action(self, c_val=0.1):
+    def best_action(self, c_val=np.sqrt(2)):
         child = self.best_child(c_val)
         return child.action
 
@@ -301,25 +301,49 @@ class MCTSbot(botbowl.Agent):
 
         return game_copy
 
-    def evaluate(self, game_copy):
+        def evaluate(self, game_copy):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
         # This is used because the tree is too large to score a win or loss
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
         score = (game_copy.state.home_team.state.score -
                  game_copy.state.away_team.state.score) * 100
+
+        if game_copy.get_ball_position() != None:
+            x_ball = game_copy.get_ball_position().x
+            y_yball = game_copy.get_ball_position().y
+            distance2endzone = abs(target_x - x_ball)
+            score -= distance2endzone
+        else:
+            x_ball, y_ball = None, None
+
         for player in self.my_team.players:
             if player.state.up and not player.state.stunned:
                 score += 1
             if player == ball_carrier or game_copy.has_ball(player):
                 # Not sure which conditional to use, so why not use both
                 score += 5 + player.get_ma()
+            if x_ball != None and player.position != None:
+                player_x = player.position.x
+                player_y = player.position.y
+                dist = np.linalg.norm(np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
+                score -= (dist / player.get_ma())
+        
+        enemy_players = game_copy.get_opp_team(self.my_team)
+        for player in enemy_players:
+            if not player.state.up or player.state.stunned:
+                score += 10
+            if player == ball_carrier or game_copy.has_ball(player):
+                score -= 5
+
         if game_copy.get_ball_position() != None:
             x_ball = game_copy.get_ball_position().x
             distance2endzone = abs(target_x - x_ball)
             score -= distance2endzone
+
         return score
 
+    
     def setup(self, game):
         self.my_team = game.get_team_by_id(self.my_team.team_id)
         self.opp_team = game.get_opp_team(self.my_team)
