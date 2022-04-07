@@ -154,10 +154,7 @@ class MCTSbot(botbowl.Agent):
         self.my_team = team
 
     def act(self, game):
-        # print("Time to take an action")
-        #print(game.state.available_actions)
         ##Scripted coin flip
-        # Why is this needed? can't you just set which team starts. Haven't seen actiontype.Heads coming up
         if (game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
             if(self.coin == "heads"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
@@ -165,32 +162,22 @@ class MCTSbot(botbowl.Agent):
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
         ##Scripted kick/receive
-        # Kick can now be selected before a team is formed
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.KICK):
             if(self.KR == "kick"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
             else:
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
-        ##Scripted Formation, does not work yet!!!!
+        ##Scripted Formation
         # Place a player according to the formation when your team does't have 5 players in a position
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
-            # if [player.position != None for player in self.my_team.players].count(True) != 5:
-            #print(self.formation)
-            #print("1:!!!!!!")
             if (self.formation == False) or (self.formation == True and len(self.setup_actions) != 0):
-                #print("2:!!!!!!")
                 action = self.setup(game)
             elif [player.position != None for player in self.my_team.players].count(True) == 5:
-
-            # else:
-                #print("3:!!!!!!")
                 action = botbowl.Action(game.state.available_actions[1].action_type)
+
             if(action.action_type == botbowl.ActionType.END_SETUP):
                 self.formation = False
-                #print("4:!!!!!!")
-            #print(botbowl.ActionType.END_SETUP)
-            #print(action)
 
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_BALL):
             position = self.rnd.choice(game.state.available_actions[0].positions)
@@ -397,7 +384,7 @@ if __name__ == "__main__":
     config.competition_mode = False
     config.debug_mode = False
 
-    # Play 10 games
+    # Play 5 games
     game_times = []
     MCTS_wins = 0
     for i in range(5):
@@ -411,7 +398,6 @@ if __name__ == "__main__":
 
         print("Starting game", (i+1))
         game.init()
-        #print(home_agent)
         if(game.get_winner() == home_agent):
             print("Home team wins!!")
             MCTS_wins += 1
@@ -421,4 +407,4 @@ if __name__ == "__main__":
         time_endGame = time.time()
         print("Total time of game was: {0} seconds".format(time_endGame - time_startGame))
         print("Game is over")
-    print("Agent won a total of", MCTS_wins, "games")
+    print("MCTS agent won a total of", MCTS_wins, "games")
