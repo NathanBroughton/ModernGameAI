@@ -5,8 +5,7 @@ import copy
 import time
 from botbowl.web import server
 
-
-rollout_depth = 10
+rollout_depth = 2
 tree_depth = 5
 n_simulations = 100
 
@@ -45,8 +44,7 @@ class MyRandomBot(botbowl.Agent):
             action_choice.players) > 0 else None
 
         # Make action object
-        action = botbowl.Action(action_choice.action_type,
-                                position=position, player=player)
+        action = botbowl.Action(action_choice.action_type, position=position, player=player)
 
         # Return action to the framework
         return action
@@ -144,10 +142,7 @@ class MCTSbot(botbowl.Agent):
         self.my_team = team
 
     def act(self, game):
-        # print("Time to take an action")
-
         ##Scripted coin flip
-        # Why is this needed? can't you just set which team starts. Haven't seen actiontype.Heads coming up
         if (game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
             if(self.coin == "heads"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
@@ -155,22 +150,17 @@ class MCTSbot(botbowl.Agent):
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
         ##Scripted kick/receive
-        # Kick can now be selected before a team is formed
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.KICK):
             if(self.KR == "kick"):
                 action = botbowl.Action(game.state.available_actions[0].action_type)
             else:
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
-        ##Scripted Formation, does not work yet!!!!
-        # Place a player according to the formation when your team does't have 5 players in a position
+        ##Scripted Starting Formation
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
-            # if [player.position != None for player in self.my_team.players].count(True) != 5:
             if (self.formation == False) or (self.formation == True and len(self.setup_actions) != 0):
                 action = self.setup(game)
             elif [player.position != None for player in self.my_team.players].count(True) == 5:
-
-            # else:
                 action = botbowl.Action(game.state.available_actions[1].action_type)
 
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_BALL):
@@ -190,13 +180,11 @@ class MCTSbot(botbowl.Agent):
             root_node = MCTSNode()
             root_step = game_copy.get_step()
 
-            # print("Simulating {0} games".format(n_simulations))
             for i in range(n_simulations):
-                # print("Simulation", i)
-                # Find a leaf node
+                # Select a leaf node
                 leaf_node, game_copy = self.traverse(root_node, game_copy)
                 # Rollout until depth reached or terminal node
-                game_copy = self.rollout(game_copy)
+                game_copy = self.rollout(game_copy) ### TAKES A RELATIVELY LONG TIME ###
                 # Evaluate rollout result
                 score = self.evaluate(game_copy)
                 # Backprop score
@@ -205,11 +193,10 @@ class MCTSbot(botbowl.Agent):
                 game_copy.revert(root_step)
 
             # Select best action
-            best_action = root_node.best_action(c_val=0.)
+            best_action = root_node.best_action(c_val=0.2)
 
             time_end = time.time()
-            print("Found best action:", best_action,
-                "in {0} seconds".format(time_end - time_start))
+            print("Found best action:", best_action, "in {0} seconds".format(time_end - time_start))
             action = best_action
         return action
 
@@ -245,12 +232,11 @@ class MCTSbot(botbowl.Agent):
                     # If we are game over, terminate traversal and return the terminal node and game copy
                     if game_copy.state.game_over:
                         current_node.terminal = True
-                        terminal = True
+                        # terminal = True
                         return current_node, game_copy
 
                     # No game over and we can play again, so let's select an action
-                    action = self.selection(
-                        current_node, possible_action_choices)
+                    action = self.selection(current_node, possible_action_choices)
 
                     # Check if the node is actually fully expanded
                     if action == None:
@@ -297,24 +283,27 @@ class MCTSbot(botbowl.Agent):
             for action_choice in game_copy.get_available_actions():
                 if action_choice.action_type == botbowl.ActionType.PLACE_PLAYER:
                     continue
-                for player in action_choice.players:
-                    actions.append(
-                        Action(action_choice.action_type, player=player))
-                for position in action_choice.positions:
-                    actions.append(
-                        Action(action_choice.action_type, position=position))
+
                 if len(action_choice.players) == len(action_choice.positions) == 0:
                     actions.append(Action(action_choice.action_type))
+                else:
+                    for player in action_choice.players:
+                        actions.append(Action(action_choice.action_type, player=player))
+
+                    for position in action_choice.positions:
+                        actions.append(Action(action_choice.action_type, position=position))
 
             a = self.rnd.choice(actions)
             game_copy.step(a)
             rollout_i += 1
             if game_copy.state.game_over:
                 game_over = True
+
         return game_copy
 
     def evaluate(self, game_copy):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
+        # This is used because the tree is too large to score a win or loss
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
         score = (game_copy.state.home_team.state.score -
@@ -361,7 +350,7 @@ class MCTSbot(botbowl.Agent):
 # Register the bot to the framework
 botbowl.register_bot('my-random-bot', MyRandomBot)
 botbowl.register_bot('MCTS-bot', MCTSbot)
-server.start_server(debug=True, use_reloader=False)
+# server.start_server(debug=True, use_reloader=False)
 
 if __name__ == "__main__":
     # test = MCTS(5) #We sturen game.state in MCTS niet 5
@@ -380,8 +369,7 @@ if __name__ == "__main__":
         away_agent = botbowl.make_bot("my-random-bot")
         home_agent = botbowl.make_bot("MCTS-bot")
 
-        game = botbowl.Game(i, home, away, home_agent,
-                            away_agent, config, arena=arena, ruleset=ruleset)
+        game = botbowl.Game(i, home, away, home_agent, away_agent, config, arena=arena, ruleset=ruleset)
         game.config.fast_mode = True
 
         print("Starting game", (i+1))
