@@ -69,12 +69,12 @@ class MCTSNode_opp:
         for child in self.children:
             ucb_values.append(child.q() / child.n() + c_val *
                               np.sqrt((2 * np.log(self.n()) / child.n())))
-        #print("My children", self.child_actions, "with values:", ucb_values, "with lengths:", len(self.child_actions), "and", len(ucb_values))
         return self.children[np.argmax(ucb_values)]
 
     def best_action(self, c_val=0.1):
         child = self.best_child(c_val)
         return child.action
+
 
 class MCTSbot_opp(botbowl.Agent):
     def __init__(self, name, seed=None):
@@ -111,15 +111,13 @@ class MCTSbot_opp(botbowl.Agent):
         self.off_formation = botbowl.Formation("Wedge offense", self.off_formation)
         self.def_formation = botbowl.Formation("Zone defense", self.def_formation)
         self.setup_actions = []
-        self.no_actions_taken = 0
-        self.avg_time = 0
+        self.avg_time = []
 
     def new_game(self, game, team):
         self.my_team = team
 
     def act(self, game):
-        # print("Time to take an action")
-        #print(game.state.available_actions)
+        time_start = time.time()
         ##Scripted coin flip
         # Why is this needed? can't you just set which team starts. Haven't seen actiontype.Heads coming up
         if (game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
@@ -139,22 +137,12 @@ class MCTSbot_opp(botbowl.Agent):
         ##Scripted Formation, does not work yet!!!!
         # Place a player according to the formation when your team does't have 5 players in a position
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
-            # if [player.position != None for player in self.my_team.players].count(True) != 5:
-            #print(self.formation)
-            #print("1:!!!!!!")
             if (self.formation == False) or (self.formation == True and len(self.setup_actions) != 0):
-                #print("2:!!!!!!")
                 action = self.setup(game)
             elif [player.position != None for player in self.my_team.players].count(True) == 5:
-
-            # else:
-                #print("3:!!!!!!")
                 action = botbowl.Action(game.state.available_actions[1].action_type)
             if(action.action_type == botbowl.ActionType.END_SETUP):
                 self.formation = False
-                #print("4:!!!!!!")
-            #print(botbowl.ActionType.END_SETUP)
-            #print(action)
 
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_BALL):
             position = self.rnd.choice(game.state.available_actions[0].positions)
@@ -163,7 +151,6 @@ class MCTSbot_opp(botbowl.Agent):
         ##Stuur deepcopy naar MCTS class om beste actie te kiezen
         else:
             # Time MCTS
-            time_start = time.time()
             game_copy = copy.deepcopy(game)
             game_copy.enable_forward_model()
             game_copy.home_agent.human = True
@@ -173,9 +160,8 @@ class MCTSbot_opp(botbowl.Agent):
             root_node = MCTSNode_opp()
             root_step = game_copy.get_step()
 
-            # print("Simulating {0} games".format(n_simulations))
+
             for i in range(n_simulations):
-                # print("Simulation", i)
                 # Find a leaf node
                 leaf_node, game_copy = self.traverse(root_node, game_copy)
                 # Rollout until depth reached or terminal node
@@ -190,12 +176,11 @@ class MCTSbot_opp(botbowl.Agent):
             # Select best action
             best_action = root_node.best_action(c_val=0.)
 
-            time_end = time.time()
-            print("Found best action:", best_action,
-                "in {0} seconds".format(time_end - time_start))
             action = best_action
-            self.no_actions_taken += 1
-            self.avg_time += (time_end - time_start)
+        time_end = time.time()
+        print("Found best action:", action,
+                "in {0} seconds".format(time_end - time_start))    
+        self.avg_time.append(time_end - time_start)
         return action
 
     def traverse(self, root_node, game_copy):
@@ -279,7 +264,6 @@ class MCTSbot_opp(botbowl.Agent):
         rollout_i = 0
         while not game_over and rollout_i < rollout_depth:
             actions = []
-            #print("Options:",game_copy.get_available_actions())
             for action_choice in game_copy.get_available_actions():
                 if action_choice.action_type == botbowl.ActionType.PLACE_PLAYER:
                     continue
@@ -303,20 +287,8 @@ class MCTSbot_opp(botbowl.Agent):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
-
-        # Determine score based on which side our team is on
-        if game_copy.state.home_team == self.my_team and game_copy.state.away_team == game_copy.get_opp_team(
-                self.my_team):
-            score = (game_copy.state.home_team.state.score -
-                     game_copy.state.away_team.state.score) * 100
-
-        elif game_copy.state.away_team == self.my_team and game_copy.state.home_team == game_copy.get_opp_team(
-                self.my_team):
-            score = (game_copy.state.away_team.state.score -
-                     game_copy.state.home_team.state.score) * 100
-
-        else:
-            print("There was a problem with figuring out which team we are on")
+        score = (game_copy.state.away_team.state.score -
+                 game_copy.state.home_team.state.score) * 100
 
         if game_copy.get_ball_position() != None:
             x_ball = game_copy.get_ball_position().x
@@ -376,5 +348,5 @@ class MCTSbot_opp(botbowl.Agent):
         return(action)
 
     def end_game(self, game):
-        print("The average time per action taken is", self.avg_time/self.no_actions_taken, "seconds")
+        print("The average time per MCTSbot2 action is", np.mean(self.avg_time), "+/-", np.std(self.avg_time))
         pass
