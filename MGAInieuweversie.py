@@ -390,15 +390,15 @@ class MCTSbot(botbowl.Agent):
 botbowl.register_bot('my-random-bot', MyRandomBot)
 botbowl.register_bot('MCTS-bot', MCTSbot)
 botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
-#server.start_server(debug=True, use_reloader=False)
+# server.start_server(debug=True, use_reloader=False)
 
 if __name__ == "__main__":
     # Load configurations, rules, arena and teams
     config = botbowl.load_config("web")
     ruleset = botbowl.load_rule_set(config.ruleset)
     arena = botbowl.load_arena(config.arena)
-    home = botbowl.load_team_by_filename("human", ruleset)
-    away = botbowl.load_team_by_filename("human", ruleset)
+    home = botbowl.load_team_by_filename("orc", ruleset)
+    away = botbowl.load_team_by_filename("skaven", ruleset)
     config.competition_mode = False
     config.debug_mode = False
 
@@ -407,8 +407,8 @@ if __name__ == "__main__":
     MCTS_wins = 0
     for i in range(3):
         time_startGame = time.time()
-        away_agent = botbowl.make_bot("my-random-bot")
-        home_agent = botbowl.make_bot('MCTS-bot_opp')
+        home_agent = botbowl.make_bot('MCTS-bot')
+        away_agent = botbowl.make_bot('MCTS-bot_opp')
 
         game = botbowl.Game(i, home, away, home_agent,
                             away_agent, config, arena=arena, ruleset=ruleset)

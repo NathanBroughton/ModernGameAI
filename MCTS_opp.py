@@ -303,6 +303,8 @@ class MCTSbot_opp(botbowl.Agent):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
+        # score = (game_copy.state.home_team.state.score -
+        #          game_copy.state.away_team.state.score) * 100
         score = (game_copy.state.away_team.state.score -
                  game_copy.state.home_team.state.score) * 100
 
