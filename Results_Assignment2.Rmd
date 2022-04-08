@@ -16,11 +16,6 @@ names(data) = c('score', 'bot', 'race')
 summary(data)
 ```
 
-```{r}
-# Make tables with mean and sd for the bots and races
-aggregate(x = data$score, by = list(data$bot), FUN = function(x) c(mean = mean(x), sd = sd(x))) # bot
-aggregate(x = data$score, by = list(data$race), FUN = function(x) c(mean = mean(x), sd = sd(x))) # race
-```
 
 ```{r}
 # One-way Anova to compare the effect of 4 bots on score
@@ -66,9 +61,38 @@ data_sum
 ```
 
 ```{r}
+# Make QQ-plot of scores to test normality assumption
+png('qqplot.png')
+qqnorm(data$score)
+qqline(data$score)
+dev.off()
+# Normality assumption violated --> Wilcoxon paired signed rank test instead of paired t-test
+
+# Make subsets
+MCTS1 = subset(data, bot == 'MCTS1')
+MCTS2 = subset(data, bot == 'MCTS2')
+procedural = subset(data, bot == 'procedural')
+random = subset(data, bot == 'random')
+
+# Wilcoxon paired signed rank test; score difference using two races on the same bot
+wilcox_test_MCTS1 = wilcox.test(MCTS1[MCTS1$race == 'human', 'score'], MCTS1[MCTS1$race == 'chaos', 'score'], paired = TRUE)
+wilcox_test_MCTS2 = wilcox.test(MCTS2[MCTS2$race == 'human', 'score'], MCTS2[MCTS2$race == 'amazon', 'score'], paired = TRUE)
+wilcox_test_proecedural = wilcox.test(procedural[procedural$race == 'human', 'score'], procedural[procedural$race == 'orc', 'score'], paired = TRUE)
+wilcox_test_random = wilcox.test(random[random$race == 'human', 'score'], random[random$race == 'undead', 'score'], paired = TRUE)
+
+# Make table of p-values
+table_wilcoxon = matrix(c(wilcox_test_MCTS1$p.value, wilcox_test_MCTS2$p.value, wilcox_test_proecedural$p.value, wilcox_test_random$p.value), ncol = 1)
+rownames(table_wilcoxon) = c('MCTS1', 'MCTS2', 'procedural', 'random')
+colnames(table_wilcoxon) = 'p-values'
+wilcoxon = as.data.frame(table_wilcoxon)
+wilcoxon
+```
+
+```{r}
 # Make a plot showing the comparison
 plot = ggplot(data, aes(x = race, y = score, group = bot)) + 
-  geom_point(cex = 1.5, pch = 1.0, position = position_jitter(w = 0.1, h = 0))
+  geom_point(cex = 1.5, pch = 1.0, position = position_jitter(w = 0.1, h = 0)) + 
+  ylim(0, 9)
 
 plot2 = plot + 
   stat_summary(fun.data = 'mean_se', geom = 'errorbar', width = 0.2) +
@@ -76,7 +100,8 @@ plot2 = plot +
   geom_point(data = data_sum, aes(x = race, y = score))
 
 plot3 = plot2 + 
-  geom_text(data = data_sum, label = round(data_sum$score, 3), vjust = -8, size = 4) +
+  geom_text(data = data_sum, label = round(data_sum$score, 3), vjust = -6.3, size = 4) +
   facet_wrap(~ bot)
+  png('two_way_anova.png')
 plot3
 ```
