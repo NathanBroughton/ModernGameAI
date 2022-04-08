@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="832d4589-7275-425e-82c8-6dee2c16a81c" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/MCTS_opp.py" beforeDir="false" afterPath="$PROJECT_DIR$/MCTS_opp.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MGAInieuweversie.py" beforeDir="false" afterPath="$PROJECT_DIR$/MGAInieuweversie.py" afterDir="false" />
     </list>
