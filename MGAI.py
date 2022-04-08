@@ -104,7 +104,7 @@ class MCTSNode:
     def is_fully_expanded(self):
         return self.fully_expanded
 
-    def best_child(self, c_val=np.sqrt(2)):
+    def best_child(self, c_val=0.1):
         # Return the best child according to UCT selection
         ucb_values = []
         for child in self.children:
@@ -112,7 +112,7 @@ class MCTSNode:
                               np.sqrt((2 * np.log(self.n()) / child.n())))
         return self.children[np.argmax(ucb_values)]
 
-    def best_action(self, c_val=np.sqrt(2)):
+    def best_action(self, c_val=0.1):
         # Return the best action accordin to UCT selection
         child = self.best_child(c_val)
         return child.action
