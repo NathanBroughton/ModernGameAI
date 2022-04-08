@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr  4 19:14:58 2022
-
-@author: NatBr
-"""
-
 import botbowl
 from botbowl.core import Action, game
 import numpy as np
@@ -34,12 +27,14 @@ class MyRandomBot(botbowl.Agent):
         super().__init__(name)
         self.my_team = None
         self.rnd = np.random.RandomState(seed)
+        self.avg_time = []
 
     def new_game(self, game, team):
         self.my_team = team
 
     def act(self, game):
         # Select a random action type
+        time_start = time.time()
         while True:
             action_choice = self.rnd.choice(game.state.available_actions)
             # Ignore PLACE_PLAYER actions
@@ -57,11 +52,13 @@ class MyRandomBot(botbowl.Agent):
                                 position=position, player=player)
 
         # Return action to the framework
+        time_end = time.time()
+        self.avg_time.append(time_end - time_start)
         return action
 
     def end_game(self, game):
+        print("The average time per random action is", np.mean(self.avg_time), "+/-", np.std(self.avg_time))
         pass
-
 
 class MCTSNode:
     # This node is used for the recursive tree search
@@ -111,7 +108,6 @@ class MCTSNode:
         child = self.best_child(c_val)
         return child.action
 
-
 class MCTSbot(botbowl.Agent):
     def __init__(self, name, seed=None):
         super().__init__(name)
@@ -147,13 +143,13 @@ class MCTSbot(botbowl.Agent):
         self.off_formation = botbowl.Formation("Wedge offense", self.off_formation)
         self.def_formation = botbowl.Formation("Zone defense", self.def_formation)
         self.setup_actions = []
-        self.no_actions_taken = 0
-        self.avg_time = 0
+        self.avg_time = []
 
     def new_game(self, game, team):
         self.my_team = team
 
     def act(self, game):
+        time_start = time.time()
         ##Scripted coin flip
         if (game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
             if(self.coin == "heads"):
@@ -186,7 +182,6 @@ class MCTSbot(botbowl.Agent):
         ##Stuur deepcopy naar MCTS class om beste actie te kiezen
         else:
             # Time MCTS
-            time_start = time.time()
             game_copy = copy.deepcopy(game)
             game_copy.enable_forward_model()
             game_copy.home_agent.human = True
@@ -212,12 +207,12 @@ class MCTSbot(botbowl.Agent):
             # Select best action
             best_action = root_node.best_action(c_val=0.)
 
-            time_end = time.time()
-            print("Found best action:", best_action,
-                "in {0} seconds".format(time_end - time_start))
+
             action = best_action
-            self.no_actions_taken += 1
-            self.avg_time += (time_end - time_start)
+        time_end = time.time()
+        print("Found best action:", action,
+                "in {0} seconds".format(time_end - time_start))    
+        self.avg_time.append(time_end - time_start)
         return action
 
     def traverse(self, root_node, game_copy):
@@ -234,7 +229,7 @@ class MCTSbot(botbowl.Agent):
                     current_node = current_node.best_child()
                     traversed_depth += 1
 
-                    # If the current node is terminal, we return current node as leaf
+                    # Unless the current node is terminal, we return current node as leaf
                     terminal = current_node.terminal
                     if terminal:
                         return current_node, game_copy
@@ -243,7 +238,7 @@ class MCTSbot(botbowl.Agent):
                     # Retrieve all possible actions
                     possible_action_choices = game_copy.get_available_actions()
 
-                    # If there are no actions available, and the game has not ended, step a node further
+                    # Skip until we can play
                     while not game_copy.state.game_over and len(possible_action_choices) == 0:
                         game_copy.step()
                         possible_action_choices = game_copy.get_available_actions()
@@ -255,7 +250,8 @@ class MCTSbot(botbowl.Agent):
                         return current_node, game_copy
 
                     # No game over and we can play again, so let's select an action
-                    action = self.selection(current_node, possible_action_choices)
+                    action = self.selection(
+                        current_node, possible_action_choices)
 
                     # Check if the node is actually fully expanded
                     if action == None:
@@ -279,9 +275,11 @@ class MCTSbot(botbowl.Agent):
             if action_choice.action_type == botbowl.ActionType.PLACE_PLAYER:
                 continue
             for player in action_choice.players:
-                actions.append(Action(action_choice.action_type, player=player))
+                actions.append(
+                    Action(action_choice.action_type, player=player))
             for position in action_choice.positions:
-                actions.append(Action(action_choice.action_type, position=position))
+                actions.append(
+                    Action(action_choice.action_type, position=position))
             if len(action_choice.players) == len(action_choice.positions) == 0:
                 actions.append(Action(action_choice.action_type))
 
@@ -297,14 +295,15 @@ class MCTSbot(botbowl.Agent):
         rollout_i = 0
         while not game_over and rollout_i < rollout_depth:
             actions = []
-            #print("Options:",game_copy.get_available_actions())
             for action_choice in game_copy.get_available_actions():
                 if action_choice.action_type == botbowl.ActionType.PLACE_PLAYER:
                     continue
                 for player in action_choice.players:
-                    actions.append(Action(action_choice.action_type, player=player))
+                    actions.append(
+                        Action(action_choice.action_type, player=player))
                 for position in action_choice.positions:
-                    actions.append(Action(action_choice.action_type, position=position))
+                    actions.append(
+                        Action(action_choice.action_type, position=position))
                 if len(action_choice.players) == len(action_choice.positions) == 0:
                     actions.append(Action(action_choice.action_type))
             if(len(actions) != 0):
@@ -388,25 +387,24 @@ class MCTSbot(botbowl.Agent):
         return(action)
 
     def end_game(self, game):
-        print("The average time per action taken is", self.avg_time/self.no_actions_taken, "seconds")
+        print("The average time per action is", np.mean(self.avg_time), "+/-", np.std(self.avg_time))
         pass
 
 
 # Register the bot to the framework
 botbowl.register_bot('my-random-bot', MyRandomBot)
-botbowl.register_bot('MCTS-bot1', MCTSbot)
-botbowl.register_bot('MCTS-bot2', opp.MCTSbot_opp)
+botbowl.register_bot('MCTS-bot', MCTSbot)
+botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
 botbowl.register_bot('procedural-bot', MyScriptedBot)
-#server.start_server(debug=True, use_reloader=False)
-
+server.start_server(debug=True, use_reloader=False)
 
 if __name__ == "__main__":
     # Load configurations, rules, arena and teams
     config = botbowl.load_config("web")
     ruleset = botbowl.load_rule_set(config.ruleset)
     arena = botbowl.load_arena(config.arena)
-    home = botbowl.load_team_by_filename("chaos", ruleset)
-    away = botbowl.load_team_by_filename("amazon", ruleset)
+    home = botbowl.load_team_by_filename("human", ruleset)
+    away = botbowl.load_team_by_filename("human", ruleset)
     config.competition_mode = False
     config.debug_mode = False
 
@@ -415,10 +413,11 @@ if __name__ == "__main__":
     MCTS_wins = 0
     for i in range(3):
         time_startGame = time.time()
-        home_agent = botbowl.make_bot('MCTS-bot1')
-        away_agent = botbowl.make_bot('MCTS-bot2')
+        away_agent = botbowl.make_bot("MCTS-bot_opp")
+        home_agent = botbowl.make_bot('MCTS-bot')
 
-        game = botbowl.Game(i, home, away, home_agent, away_agent, config, arena=arena, ruleset=ruleset)
+        game = botbowl.Game(i, home, away, home_agent,
+                            away_agent, config, arena=arena, ruleset=ruleset)
         game.config.fast_mode = True
 
         print("Starting game", (i+1))
@@ -434,4 +433,3 @@ if __name__ == "__main__":
         print(game.state.home_team.state.score, "-", game.state.away_team.state.score)
         print("Game is over")
     print("Agent won a total of", MCTS_wins, "games")
-
