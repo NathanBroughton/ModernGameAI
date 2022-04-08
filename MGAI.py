@@ -21,6 +21,8 @@ if tree_depth == None:
 else:
     tree2terminal = False
 
+# The random bot, as implemented by Njustesen in the example bots
+
 
 class MyRandomBot(botbowl.Agent):
     def __init__(self, name, seed=None):
@@ -57,8 +59,12 @@ class MyRandomBot(botbowl.Agent):
         return action
 
     def end_game(self, game):
-        print("The average time per random action is", np.mean(self.avg_time), "+/-", np.std(self.avg_time))
+        print("The average time per random action is", np.mean(
+            self.avg_time), "+/-", np.std(self.avg_time))
         pass
+
+# A node specifically designed for MCTS, inspired by the searchbot node as implemented by Njustesen
+
 
 class MCTSNode:
     # This node is used for the recursive tree search
@@ -72,20 +78,25 @@ class MCTSNode:
         self.fully_expanded = False
 
     def q(self):
+        # Return the average score that this node resulted in, inspired by various MCTS implementations
         return np.mean(self.evaluations)
 
     def n(self):
+        # Return the number of visists, also inspired by various MCTS implementations
         return len(self.evaluations)
 
     def visit(self, score):
+        # Perform a visit to a node
         self.evaluations.append(score)
 
     def backpropagate(self, score):
+        # Perform MCTS backpropagation and propagate the score to all parents
         self.visit(score)
         if self.parent != None:
             self.parent.backpropagate(score)
 
     def expand(self, action):
+        # Perform MCTS expansion
         child = MCTSNode(action=action, parent=self)
         self.children.append(child)
         self.child_actions.append(action)
@@ -97,16 +108,21 @@ class MCTSNode:
     def is_fully_expanded(self):
         return self.fully_expanded
 
-    def best_child(self, c_val=0.1):
+    def best_child(self, c_val=np.sqrt(2)):
+        # Return the best child according to UCT selection
         ucb_values = []
         for child in self.children:
             ucb_values.append(child.q() / child.n() + c_val *
                               np.sqrt((2 * np.log(self.n()) / child.n())))
         return self.children[np.argmax(ucb_values)]
 
-    def best_action(self, c_val=0.1):
+    def best_action(self, c_val=np.sqrt(2)):
+        # Return the best action accordin to UCT selection
         child = self.best_child(c_val)
         return child.action
+
+# Our MCTS bot
+
 
 class MCTSbot(botbowl.Agent):
     def __init__(self, name, seed=None):
@@ -117,6 +133,8 @@ class MCTSbot(botbowl.Agent):
         self.rnd = np.random.RandomState(seed)
         self.m = 1
         self.formation = False
+
+        # These formations will be used in the beginning of the game
         self.off_formation = [
             ["-", "-", "-", "-", "-", "-", "-", "-"],
             ["-", "-", "-", "-", "-", "-", "x", "-"],
@@ -140,8 +158,10 @@ class MCTSbot(botbowl.Agent):
             ["-", "-", "-", "-", "S", "-", "-", "-"],
             ["-", "-", "-", "-", "-", "-", "-", "-"]
         ]
-        self.off_formation = botbowl.Formation("Wedge offense", self.off_formation)
-        self.def_formation = botbowl.Formation("Zone defense", self.def_formation)
+        self.off_formation = botbowl.Formation(
+            "Wedge offense", self.off_formation)
+        self.def_formation = botbowl.Formation(
+            "Zone defense", self.def_formation)
         self.setup_actions = []
         self.avg_time = []
 
@@ -150,38 +170,44 @@ class MCTSbot(botbowl.Agent):
 
     def act(self, game):
         time_start = time.time()
-        ##Scripted coin flip
+        # Scripted coin flip
         if (game.state.available_actions[0].action_type == botbowl.ActionType.HEADS):
             if(self.coin == "heads"):
-                action = botbowl.Action(game.state.available_actions[0].action_type)
+                action = botbowl.Action(
+                    game.state.available_actions[0].action_type)
             else:
-                action = botbowl.Action(game.state.available_actions[1].action_type)
+                action = botbowl.Action(
+                    game.state.available_actions[1].action_type)
 
-        ##Scripted kick/receive
+        # Scripted kick/receive
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.KICK):
             if(self.KR == "kick"):
-                action = botbowl.Action(game.state.available_actions[0].action_type)
+                action = botbowl.Action(
+                    game.state.available_actions[0].action_type)
             else:
-                action = botbowl.Action(game.state.available_actions[1].action_type)
+                action = botbowl.Action(
+                    game.state.available_actions[1].action_type)
 
-        ##Scripted Formation
+        # Scripted Formation
         # Place a player according to the formation when your team does't have 5 players in a position
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_PLAYER):
             if (self.formation == False) or (self.formation == True and len(self.setup_actions) != 0):
                 action = self.setup(game)
             elif [player.position != None for player in self.my_team.players].count(True) == 5:
-                action = botbowl.Action(game.state.available_actions[1].action_type)
+                action = botbowl.Action(
+                    game.state.available_actions[1].action_type)
 
             if(action.action_type == botbowl.ActionType.END_SETUP):
                 self.formation = False
 
         elif(game.state.available_actions[0].action_type == botbowl.ActionType.PLACE_BALL):
-            position = self.rnd.choice(game.state.available_actions[0].positions)
-            action = botbowl.Action(game.state.available_actions[0].action_type, position=position)
+            position = self.rnd.choice(
+                game.state.available_actions[0].positions)
+            action = botbowl.Action(
+                game.state.available_actions[0].action_type, position=position)
 
-        ##Stuur deepcopy naar MCTS class om beste actie te kiezen
         else:
-            # Time MCTS
+            # Perform MCTS to decide what action should be taken
             game_copy = copy.deepcopy(game)
             game_copy.enable_forward_model()
             game_copy.home_agent.human = True
@@ -206,12 +232,11 @@ class MCTSbot(botbowl.Agent):
 
             # Select best action
             best_action = root_node.best_action(c_val=0.)
-
-
             action = best_action
+
         time_end = time.time()
         print("Found best action:", action,
-                "in {0} seconds".format(time_end - time_start))    
+              "in {0} seconds".format(time_end - time_start))
         self.avg_time.append(time_end - time_start)
         return action
 
@@ -283,6 +308,7 @@ class MCTSbot(botbowl.Agent):
             if len(action_choice.players) == len(action_choice.positions) == 0:
                 actions.append(Action(action_choice.action_type))
 
+        # Shuffle to ensure a random unexplored child node is selected for expansion
         self.rnd.shuffle(actions)
         for a in actions:
             if a not in node.child_actions:
@@ -318,16 +344,16 @@ class MCTSbot(botbowl.Agent):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
-        
+
         # Determine score based on which side our team is on
         if game_copy.state.home_team == self.my_team and game_copy.state.away_team == game_copy.get_opp_team(self.my_team):
             score = (game_copy.state.home_team.state.score -
-            game_copy.state.away_team.state.score) * 100
+                     game_copy.state.away_team.state.score) * 100
 
         elif game_copy.state.away_team == self.my_team and game_copy.state.home_team == game_copy.get_opp_team(self.my_team):
             score = (game_copy.state.away_team.state.score -
-            game_copy.state.home_team.state.score) * 100
-        
+                     game_copy.state.home_team.state.score) * 100
+
         else:
             print("There was a problem with figuring out which team we are on")
 
@@ -349,7 +375,8 @@ class MCTSbot(botbowl.Agent):
             if x_ball != None and player.position != None:
                 player_x = player.position.x
                 player_y = player.position.y
-                dist = np.linalg.norm(np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
+                dist = np.linalg.norm(
+                    np.array([player_x, player_y]) - np.array([x_ball, y_ball]))
                 score -= (dist / player.get_ma())
 
         enemy_players = game_copy.get_opp_team(self.my_team)
@@ -374,20 +401,25 @@ class MCTSbot(botbowl.Agent):
         # If no formation was set, create the actions now and return the first action
         elif not self.setup_actions and self.formation == False:
             if game.get_receiving_team() == self.my_team:
-                self.setup_actions = self.off_formation.actions(game, self.my_team)
-                self.setup_actions.append(botbowl.Action(botbowl.ActionType.END_SETUP))
+                self.setup_actions = self.off_formation.actions(
+                    game, self.my_team)
+                self.setup_actions.append(
+                    botbowl.Action(botbowl.ActionType.END_SETUP))
                 self.formation = True
                 action = self.setup_actions.pop(0)
 
             else:
-                self.setup_actions = self.def_formation.actions(game, self.my_team)
-                self.setup_actions.append(botbowl.Action(botbowl.ActionType.END_SETUP))
+                self.setup_actions = self.def_formation.actions(
+                    game, self.my_team)
+                self.setup_actions.append(
+                    botbowl.Action(botbowl.ActionType.END_SETUP))
                 self.formation = True
                 action = self.setup_actions.pop(0)
         return(action)
 
     def end_game(self, game):
-        print("The average time per action is", np.mean(self.avg_time), "+/-", np.std(self.avg_time))
+        print("The average time per action is", np.mean(
+            self.avg_time), "+/-", np.std(self.avg_time))
         pass
 
 
@@ -429,7 +461,9 @@ if __name__ == "__main__":
             print("Away teams wins!!")
         print(game.get_winner())
         time_endGame = time.time()
-        print("Total time of game was: {0} seconds".format(time_endGame - time_startGame))
-        print(game.state.home_team.state.score, "-", game.state.away_team.state.score)
+        print("Total time of game was: {0} seconds".format(
+            time_endGame - time_startGame))
+        print(game.state.home_team.state.score,
+              "-", game.state.away_team.state.score)
         print("Game is over")
     print("Agent won a total of", MCTS_wins, "games")
