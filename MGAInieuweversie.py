@@ -11,7 +11,8 @@ import numpy as np
 import copy
 import time
 from botbowl.web import server
-import MCTS_opp as opp
+# from examples.ModernGameAI import MCTS_opp as opp
+from examples.scripted_bot_example import MyScriptedBot
 
 rollout_depth = 10
 tree_depth = 5
@@ -323,8 +324,18 @@ class MCTSbot(botbowl.Agent):
         # Evaluate based on heuristics such as living teammates, whether team has ball and where the ball is on the field
         ball_carrier = game_copy.get_ball_carrier()
         target_x = game_copy.get_opp_endzone_x(self.my_team)
-        score = (game_copy.state.home_team.state.score -
-                 game_copy.state.away_team.state.score) * 100
+        
+        # Determine score based on which side our team is on
+        if game_copy.state.home_team == self.my_team and game_copy.state.away_team == game_copy.get_opp_team(self.my_team):
+            score = (game_copy.state.home_team.state.score -
+            game_copy.state.away_team.state.score) * 100
+
+        elif game_copy.state.away_team == self.my_team and game_copy.state.home_team == game_copy.get_opp_team(self.my_team):
+            score = (game_copy.state.away_team.state.score -
+            game_copy.state.home_team.state.score) * 100
+        
+        else:
+            print("There was a problem with figuring out which team we are on")
 
         # Score reduction when the ball is far away from the end zone
         if game_copy.get_ball_position() != None:
@@ -390,6 +401,7 @@ class MCTSbot(botbowl.Agent):
 botbowl.register_bot('my-random-bot', MyRandomBot)
 botbowl.register_bot('MCTS-bot', MCTSbot)
 botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
+botbowl.register_bot('procedural-bot', MyScriptedBot)
 #server.start_server(debug=True, use_reloader=False)
 
 if __name__ == "__main__":
@@ -407,8 +419,8 @@ if __name__ == "__main__":
     MCTS_wins = 0
     for i in range(3):
         time_startGame = time.time()
-        away_agent = botbowl.make_bot("my-random-bot")
-        home_agent = botbowl.make_bot('MCTS-bot_opp')
+        away_agent = botbowl.make_bot("MCTS-bot")
+        home_agent = botbowl.make_bot('MCTS-bot')
 
         game = botbowl.Game(i, home, away, home_agent,
                             away_agent, config, arena=arena, ruleset=ruleset)
