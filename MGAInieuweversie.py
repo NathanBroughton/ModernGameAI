@@ -11,7 +11,7 @@ import numpy as np
 import copy
 import time
 from botbowl.web import server
-# from examples.ModernGameAI import MCTS_opp as opp
+import MCTS_opp as opp
 from examples.scripted_bot_example import MyScriptedBot
 
 rollout_depth = 10
@@ -410,8 +410,8 @@ if __name__ == "__main__":
     config = botbowl.load_config("web")
     ruleset = botbowl.load_rule_set(config.ruleset)
     arena = botbowl.load_arena(config.arena)
-    home = botbowl.load_team_by_filename("orc", ruleset)
-    away = botbowl.load_team_by_filename("skaven", ruleset)
+    home = botbowl.load_team_by_filename("chaos", ruleset)
+    away = botbowl.load_team_by_filename("amazon", ruleset)
     config.competition_mode = False
     config.debug_mode = False
 
