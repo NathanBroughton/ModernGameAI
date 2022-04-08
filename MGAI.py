@@ -22,8 +22,6 @@ else:
     tree2terminal = False
 
 # The random bot, as implemented by Njustesen in the example bots
-
-
 class MyRandomBot(botbowl.Agent):
     def __init__(self, name, seed=None):
         super().__init__(name)
@@ -64,8 +62,6 @@ class MyRandomBot(botbowl.Agent):
         pass
 
 # A node specifically designed for MCTS, inspired by the searchbot node as implemented by Njustesen
-
-
 class MCTSNode:
     # This node is used for the recursive tree search
     def __init__(self, action=None, parent=None):
@@ -122,8 +118,6 @@ class MCTSNode:
         return child.action
 
 # Our MCTS bot
-
-
 class MCTSbot(botbowl.Agent):
     def __init__(self, name, seed=None):
         super().__init__(name)
