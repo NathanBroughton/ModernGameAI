@@ -1,0 +1,82 @@
+---
+title: "Results_Assignment2"
+author: "Esmée Roosenmaallen"
+date: "08/04/2022"
+output: pdf_document
+---
+
+```{r}
+library(haven)
+library(dplyr)
+library(ggplot2)
+
+data = read.csv('Results_Assignment2.csv')
+names(data) = c('score', 'bot', 'race')
+
+summary(data)
+```
+
+```{r}
+# Make tables with mean and sd for the bots and races
+aggregate(x = data$score, by = list(data$bot), FUN = function(x) c(mean = mean(x), sd = sd(x))) # bot
+aggregate(x = data$score, by = list(data$race), FUN = function(x) c(mean = mean(x), sd = sd(x))) # race
+```
+
+```{r}
+# One-way Anova to compare the effect of 4 bots on score
+one_way = aov(score ~ bot, data = data)
+summary(one_way)
+```
+The type of bot has a significant effect on the score. 
+
+```{r}
+# Two-way Anova to compare the effect of 4 bots and 2 races per bot on score
+two_way = aov(score ~ bot + race, data = data)
+summary(two_way)
+```
+Adding the race reduces the residuals, this implies a better model. The type of bot and race have a significant effect on the score.
+
+```{r}
+# What model is best; compare AIC values
+AIC_table = matrix(c(AIC(one_way), AIC(two_way)), ncol = 2)
+colnames(AIC_table) = c('AIC one-way Anova', 'AIC two-way Anova')
+AIC_table
+```
+
+```{r}
+# Check model assumptions
+plot(two_way)
+```
+Residuals vs fitted is more or less a horizontal line. There are no large outliers or bias in the model. So, the model fits the homoscedasticity assumptions.
+The QQ-plot does show deviation from the normal distribution. 
+
+```{r}
+# Determine what groups are statistically different from each other
+tukey_two_way = TukeyHSD(two_way)
+tukey_two_way
+```
+All bots are significantly different from each other, except for the random bot and the MCTS bot1. So, the MCTS bot1 does not perform better than random selection. So, increasing the number of simulations is important. For the races, there is only a significant difference between the orc and chaos classes. This shows, that there is still a significant difference between the procedural and MCTS bot1 when skills are involved. However, the difference between the procedural and the MCTS bot2 is not significant anymore (orcs vs. amazons, p-value = 0.07). There is also a significant difference between the orcs and the undeads, showing that the procedural bot outperforms the random bot. Also, a significant differnce between the orcs and the humans can be found. Implying that the procedural bot with skills outperforms all bots used on humans (not really a relevant result?). 
+
+```{r}
+# Table with scores per combination of race and bot
+data_sum = data %>%
+  group_by(bot, race) %>%
+  summarise(score = mean(score))
+data_sum
+```
+
+```{r}
+# Make a plot showing the comparison
+plot = ggplot(data, aes(x = race, y = score, group = bot)) + 
+  geom_point(cex = 1.5, pch = 1.0, position = position_jitter(w = 0.1, h = 0))
+
+plot2 = plot + 
+  stat_summary(fun.data = 'mean_se', geom = 'errorbar', width = 0.2) +
+  stat_summary(fun.data = 'mean_se', geom = 'pointrange') +
+  geom_point(data = data_sum, aes(x = race, y = score))
+
+plot3 = plot2 + 
+  geom_text(data = data_sum, label = round(data_sum$score, 3), vjust = -8, size = 4) +
+  facet_wrap(~ bot)
+plot3
+```

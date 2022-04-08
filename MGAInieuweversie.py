@@ -234,7 +234,7 @@ class MCTSbot(botbowl.Agent):
                     current_node = current_node.best_child()
                     traversed_depth += 1
 
-                    # Unless the current node is terminal, we return current node as leaf
+                    # If the current node is terminal, we return current node as leaf
                     terminal = current_node.terminal
                     if terminal:
                         return current_node, game_copy
@@ -243,7 +243,7 @@ class MCTSbot(botbowl.Agent):
                     # Retrieve all possible actions
                     possible_action_choices = game_copy.get_available_actions()
 
-                    # Skip until we can play
+                    # If there are no actions available, and the game has not ended, step a node further
                     while not game_copy.state.game_over and len(possible_action_choices) == 0:
                         game_copy.step()
                         possible_action_choices = game_copy.get_available_actions()
@@ -255,8 +255,7 @@ class MCTSbot(botbowl.Agent):
                         return current_node, game_copy
 
                     # No game over and we can play again, so let's select an action
-                    action = self.selection(
-                        current_node, possible_action_choices)
+                    action = self.selection(current_node, possible_action_choices)
 
                     # Check if the node is actually fully expanded
                     if action == None:
@@ -280,11 +279,9 @@ class MCTSbot(botbowl.Agent):
             if action_choice.action_type == botbowl.ActionType.PLACE_PLAYER:
                 continue
             for player in action_choice.players:
-                actions.append(
-                    Action(action_choice.action_type, player=player))
+                actions.append(Action(action_choice.action_type, player=player))
             for position in action_choice.positions:
-                actions.append(
-                    Action(action_choice.action_type, position=position))
+                actions.append(Action(action_choice.action_type, position=position))
             if len(action_choice.players) == len(action_choice.positions) == 0:
                 actions.append(Action(action_choice.action_type))
 
@@ -305,11 +302,9 @@ class MCTSbot(botbowl.Agent):
                 if action_choice.action_type == botbowl.ActionType.PLACE_PLAYER:
                     continue
                 for player in action_choice.players:
-                    actions.append(
-                        Action(action_choice.action_type, player=player))
+                    actions.append(Action(action_choice.action_type, player=player))
                 for position in action_choice.positions:
-                    actions.append(
-                        Action(action_choice.action_type, position=position))
+                    actions.append(Action(action_choice.action_type, position=position))
                 if len(action_choice.players) == len(action_choice.positions) == 0:
                     actions.append(Action(action_choice.action_type))
             if(len(actions) != 0):
@@ -399,8 +394,8 @@ class MCTSbot(botbowl.Agent):
 
 # Register the bot to the framework
 botbowl.register_bot('my-random-bot', MyRandomBot)
-botbowl.register_bot('MCTS-bot', MCTSbot)
-botbowl.register_bot('MCTS-bot_opp', opp.MCTSbot_opp)
+botbowl.register_bot('MCTS-bot1', MCTSbot)
+botbowl.register_bot('MCTS-bot2', opp.MCTSbot_opp)
 botbowl.register_bot('procedural-bot', MyScriptedBot)
 #server.start_server(debug=True, use_reloader=False)
 
@@ -420,8 +415,8 @@ if __name__ == "__main__":
     MCTS_wins = 0
     for i in range(3):
         time_startGame = time.time()
-        home_agent = botbowl.make_bot('MCTS-bot')
-        away_agent = botbowl.make_bot('MCTS-bot_opp')
+        home_agent = botbowl.make_bot('MCTS-bot1')
+        away_agent = botbowl.make_bot('MCTS-bot2')
 
         game = botbowl.Game(i, home, away, home_agent, away_agent, config, arena=arena, ruleset=ruleset)
         game.config.fast_mode = True
